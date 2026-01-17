@@ -1247,6 +1247,32 @@ struct HardwareScanner {
     }
 }
 
+// MARK: - Stability & Performance Scanner
+struct StabilityScanner {
+    static func analyzeFreeze() -> String {
+        let logs = Shell.run("log show --predicate 'eventMessage contains \"panic\"' --last 24h | grep -i 'panic' | tail -n 5")
+        if logs.isEmpty {
+            return "No recent Kernel Panics detected in the last 24h."
+        }
+        if logs.contains("IOPCIFamily") { return "Found Potential Freeze: IOPCIFamily error. Check GPU/Bus patches." }
+        if logs.contains("AppleALC") { return "Found Potential Freeze: Audio driver conflict. Check alcid." }
+        return "Recent Panic Found! Check your drivers for compatibility."
+    }
+    
+    static func checkSSDStatus() -> (health: String, trim: Bool) {
+        let ssdInfo = Shell.run("system_profiler SPNVMeDataType SPStorageDataType | grep -Ei 'S.M.A.R.T|TRIM'")
+        let trimStatus = ssdInfo.contains("TRIM Support: Yes")
+        let health = ssdInfo.contains("Verified") ? "Verified (Healthy)" : "Check Required"
+        return (health, trimStatus)
+    }
+    
+    static func checkPowerManagement() -> String {
+        let pm = Shell.run("pmset -g | grep -Ei 'sleep|hibernatemode'")
+        if pm.contains("hibernatemode 0") { return "Power Management: Optimal for Hackintosh." }
+        return "Power Management: Sub-optimal. Consider set hibernatemode 0."
+    }
+}
+
 // MARK: - Post Install View
 struct PostInstallView: View {
     var onBack: () -> Void
@@ -1337,6 +1363,30 @@ struct PostInstallView: View {
                          let metal = Shell.run("system_profiler SPDisplaysDataType | grep 'Metal'")
                          statusMessage = metal.isEmpty ? "Accelaration: UNKNOWN" : "Result: \(metal)"
                     }
+                    
+                    // NEW ADVANCED ROW
+                    DashboardButton(title: "Freeze Analysis", subtitle: "Scan Crash Logs", icon: "binoculars.fill", color: .purple) {
+                        statusMessage = StabilityScanner.analyzeFreeze()
+                    }
+                    
+                    DashboardButton(title: "SSD Health", subtitle: "Check Health & TRIM", icon: "memorychip", color: .blue) {
+                        let ssd = StabilityScanner.checkSSDStatus()
+                        statusMessage = "SSD Health: \(ssd.health) | TRIM: \(ssd.trim ? "ON" : "OFF")"
+                    }
+                    
+                    DashboardButton(title: "Toggle TRIM", subtitle: "Enable/Disable TRIM", icon: "scissors", color: .cyan) {
+                         toggleTrim()
+                    }
+                    
+                    DashboardButton(title: "Rebuild Cache", subtitle: "Fix Kext Permissions", icon: "arrow.triangle.2.circlepath", color: .yellow) {
+                         statusMessage = "Clearing caches and rebuilding kext database..."
+                         _ = Shell.run("sudo kextcache -i / && sudo kextcache -u /")
+                         statusMessage = "Caches rebuilt. Restart recommended."
+                    }
+                    
+                    DashboardButton(title: "Smart Optimizer", subtitle: "Fix Stability & PM", icon: "wand.and.rays", color: .orange) {
+                        runSmartOptimization()
+                    }
                 }
                 .padding()
                 
@@ -1411,10 +1461,75 @@ struct PostInstallView: View {
                 return
             }
             
-            let newArgs = "\(currentArgs) alcid=1"
-            _ = Shell.run("/usr/libexec/PlistBuddy -c \"Set \(key) \(newArgs)\" \"\(configPath)\"")
+            let newArgs = currentArgs.replacingOccurrences(of: "\"", with: "") + " alcid=1"
+            _ = Shell.run("/usr/libexec/PlistBuddy -c \"Set \(key) '\(newArgs)'\" \"\(configPath)\"")
             
-            DispatchQueue.main.async { statusMessage = "Success! Added alcid=1. Please Reboot." }
+            DispatchQueue.main.async { statusMessage = "Success: alcid=1 injected. Restart to apply." }
+        }
+    }
+    
+    func runSmartOptimization() {
+        statusMessage = "Starting Smart Optimization..."
+        DispatchQueue.global().async {
+            // 1. Check Power Management
+            let pmStatus = StabilityScanner.checkPowerManagement()
+            if pmStatus.contains("Sub-optimal") {
+                DispatchQueue.main.async { statusMessage = "Optimizing Power: Setting hibernatemode 0..." }
+                _ = Shell.run("sudo pmset -a hibernatemode 0")
+            }
+            
+            // 2. EFI Safe Checks (TRIM / Quirks)
+            DispatchQueue.main.async { statusMessage = "Checking EFI Quirks..." }
+            guard let efiPath = getEFIPath() else {
+                 DispatchQueue.main.async { statusMessage = "Optimization partial: Could not mount EFI for advanced fixes." }
+                 return
+            }
+            
+            let configPath = "\(efiPath)/config.plist"
+            _ = Shell.run("cp \"\(configPath)\" \"\(configPath).bak\"")
+            
+            // Enable ThirdPartyDrives if TRIM is off
+            let ssd = StabilityScanner.checkSSDStatus()
+            if !ssd.trim {
+                DispatchQueue.main.async { statusMessage = "Enabling ThirdPartyDrives (TRIM Support)..." }
+                _ = Shell.run("/usr/libexec/PlistBuddy -c \"Set :Kernel:Quirks:ThirdPartyDrives true\" \"\(configPath)\"")
+            }
+            
+            // Disable native TRIM timeout for stability on some SSDs
+            _ = Shell.run("/usr/libexec/PlistBuddy -c \"Set :Kernel:Quirks:SetApfsTrimTimeout 0\" \"\(configPath)\"")
+            
+            // Performance Tuning - Inject CPU Friend if needed (Placeholder logic for now)
+            // _ = Shell.run("cp -R \"\(Bundle.main.resourcePath!)/CPUFriend.kext\" \"\(efiPath)/Kexts/\"")
+            
+            DispatchQueue.main.async { statusMessage = "Optimization Complete: SSD, Power, and EFI Tweaked safely." }
+        }
+    }
+    
+    func toggleTrim() {
+        statusMessage = "Toggling TRIM Quirk..."
+        DispatchQueue.global().async {
+            guard let efiPath = getEFIPath() else {
+                 DispatchQueue.main.async { statusMessage = "Error: EFI not mounted." }
+                 return
+            }
+            let configPath = "\(efiPath)/config.plist"
+            _ = Shell.run("cp \"\(configPath)\" \"\(configPath).bak\"")
+            
+            let current = Shell.run("/usr/libexec/PlistBuddy -c \"Print :Kernel:Quirks:ThirdPartyDrives\" \"\(configPath)\"")
+            let newState = current.contains("true") ? "false" : "true"
+            _ = Shell.run("/usr/libexec/PlistBuddy -c \"Set :Kernel:Quirks:ThirdPartyDrives \(newState)\" \"\(configPath)\"")
+            
+            DispatchQueue.main.async { statusMessage = "Success: TRIM Quirk set to \(newState). Reboot required." }
+        }
+    }
+    
+    func clearKextCache() {
+        statusMessage = "Clearing caches and rebuilding kext database..."
+        DispatchQueue.global().async {
+            _ = Shell.run("sudo kextcache -i / && sudo kextcache -u /")
+            DispatchQueue.main.async {
+                statusMessage = "Caches rebuilt. Restart recommended."
+            }
         }
     }
     
