@@ -20,7 +20,7 @@
 ## ⚡ Key Features
 
 ### 🏗️ Hackintosh Builder (Hardware Recommender)
-<img src="builder.png" width="400" align="right" alt="Hackintosh Builder Interface">
+<img src="hardware_builder.png" width="450" align="right" alt="Hackintosh Builder Interface">
 
 *   **Budget-Dynamic Tiers**: Intelligent hardware selection ranging from ₹30,000 (Entry Level) to ₹6,00,000 (God Tier).
 *   **Component Matching**: Balanced builds pairing Intel Core (10th-14th Gen) with natively supported AMD Radeon GPUs (RX 580 to RX 7900 XTX).
@@ -29,8 +29,8 @@
 
 <br clear="right"/>
 
-### 🔧 Post-Install: Smart Hardware Repair & Stability
-<img src="optimizer.png" width="400" align="right" alt="System Optimizer Interface">
+### 🔧 Post-Install: Smart Hardware Repair & Optimizer
+<img src="optimizer.png" width="450" align="right" alt="System Optimizer Interface">
 
 *   **Robust EFI Mounting**: Improved auto-detection with admin privilege prompts and a manual partition picker.
 *   **Freeze Analysis (Async)**: Background scanning of system logs to diagnose recent Kernel Panics and driver conflicts.
@@ -40,17 +40,30 @@
 
 <br clear="right"/>
 
+### 🛠️ Pre-Install: EFI Builder & Setup Menu
+<img src="builder.png" width="450" align="right" alt="Pre-Install Dashboard">
+
+*   **Smart EFI Builder**: Dynamically generates solid OpenCore EFI folders based on hardware selections.
+*   **Solid Configurations**: Tailored SSDTs (e.g., `SSDT-PLUG-ALT` for 12th+ Gen) for a "perfect first boot."
+*   **Dual-Path Flow**: Clearly separated workflows for creating an Installer and generating the final EFI.
+
+<br clear="right"/>
+
+### 💾 macOS Installer Creator
+<img src="installer_creator.png" width="450" align="right" alt="macOS USB Creator Interface">
+
+*   **Direct Apple Downloads**: Directly fetches official macOS versions from Apple's servers.
+*   **One-Click Flashing**: Highly reliable USB creation tool with real-time logging and permission handling.
+*   **Tahoe & Sequoia Support**: Optimized for the latest macOS versions including beta releases.
+
+<br clear="right"/>
+
 ### 💎 Premium ToolBox (v1.1 Special)
 *   **SMBIOS Manager**: Generate high-quality Serial Numbers, Board Serials, and UUIDs for any Mac model with one-click copying.
 *   **SIP & Gatekeeper Manager**: Real-time status reporting and guidance on security configurations.
 *   **GUI Boot-Arg Dashboard**: Effortlessly toggle common boot-args (`-v`, `debug`, `pikera`) without touching a Plist editor.
 *   **Kext Update Checker**: Instantly check GitHub for the latest core kernel extensions (Lilu, WEG, AppleALC, VirtualSMC).
 *   **EFI Vault**: Create compressed, timestamped backups of your working EFI directly to your Documents folder.
-
-### 🛠️ Pre-Install: EFI Builder & Setup
-*   **Smart EFI Builder**: Dynamically generates solid OpenCore EFI folders based on hardware selections.
-*   **Solid Configurations**: Tailored SSDTs (e.g., `SSDT-PLUG-ALT` for 12th+ Gen) for a "perfect first boot."
-*   **macOS Installer Creator**: Directly fetches official macOS versions from Apple's servers and creates bootable USB media.
 
 #### 🎨 Native Experience
 - **Sleek UX**: Pure SwiftUI implementation with a fixed-size (1000x750) premium design and high-res icon pack installer.
